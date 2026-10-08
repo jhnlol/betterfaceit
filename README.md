@@ -60,7 +60,7 @@ A side panel in the match room that analyzes the enemy team:
 
 ### From source
 ```bash
-git clone https://github.com/<your-username>/faceitbetter.git
+git clone https://github.com/jhnlol/betterfaceit.git
 ```
 Then follow steps 2–4 above and select the cloned folder. There's no build step: the extension runs straight from the source.
 
