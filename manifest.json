@@ -1,0 +1,50 @@
+{
+    "manifest_version": 3,
+    "name": "Better Faceit",
+    "description": "Themes, player stats, trust factor and match intel for FACEIT. Customize the look and scout your opponents before every match.",
+    "version": "1.0",
+    "minimum_chrome_version": "117",
+    "icons": {
+        "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "permissions": ["storage"],
+    "action": {
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "32": "icons/icon32.png"
+        },
+        "default_popup": "src/popup/popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": ["*://*.faceit.com/*"],
+            "js": [
+                "src/shared/colors.js",
+                "src/shared/settings.js",
+                "src/shared/themes.js",
+                "src/content/dom.js",
+                "src/content/sheets.js",
+                "src/content/theme.js"
+            ],
+            "run_at": "document_start"
+        },
+        {
+            "matches": ["*://*.faceit.com/*"],
+            "js": [
+                "src/shared/format.js",
+                "src/shared/icons.js",
+                "src/shared/chips.js",
+                "src/content/api.js",
+                "src/content/analysis.js",
+                "src/content/room.js",
+                "src/content/panels.js",
+                "src/content/badges.js",
+                "src/content/intel.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ]
+}

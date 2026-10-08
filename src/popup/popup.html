@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Faceit Better</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <nav class="sidebar">
+    <img class="logo" src="../../icons/icon.svg" alt="Faceit Better">
+
+    <button class="tab" data-tab="appearance" title="Appearance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/>
+        <circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/>
+        <path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2z"/>
+      </svg>
+      Look
+    </button>
+
+    <button class="tab" data-tab="player" title="Player">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>
+      </svg>
+      Player
+    </button>
+
+    <div class="version" id="version"></div>
+  </nav>
+
+  <main class="content">
+    <header>
+      <h1>Faceit <span>Better</span></h1>
+      <p id="subtitle"></p>
+    </header>
+
+    <div class="pages">
+      <section class="page" id="appearance" data-subtitle="Customize the look of FACEIT">
+        <h2>Theme</h2>
+        <div class="themes" id="themes"></div>
+
+        <div class="custom-editor" id="custom-editor" hidden>
+          <h2>Custom theme</h2>
+          <div class="card" id="custom-colors">
+            <div class="row">
+              <div><div class="label">Start from</div><div class="desc">Copy the colors of a preset</div></div>
+              <select id="custom-base"></select>
+            </div>
+          </div>
+        </div>
+
+        <h2>Style</h2>
+        <div class="card">
+          <div class="row">
+            <div><div class="label">Roundness</div><div class="desc">Sharp ↔ very rounded</div></div>
+            <div class="range"><input type="range" min="0" max="200" step="10" data-bind="style.roundness"><output data-output="style.roundness"></output></div>
+          </div>
+          <div class="row">
+            <div><div class="label">Panel borders</div><div class="desc">Outline width around cards</div></div>
+            <div class="range"><input type="range" min="0" max="3" step="1" data-bind="style.borderWidth"><output data-output="style.borderWidth"></output></div>
+          </div>
+          <div class="row">
+            <div><div class="label">Font</div><div class="desc">Typeface used on the page</div></div>
+            <select data-bind="style.font" id="font-select"></select>
+          </div>
+          <div class="row">
+            <div><div class="label">Scale</div><div class="desc">Size of the whole interface</div></div>
+            <div class="range"><input type="range" min="80" max="120" step="5" data-bind="style.scale"><output data-output="style.scale"></output></div>
+          </div>
+          <div class="row">
+            <div><div class="label">Shadows</div><div class="desc">Under windows and menus</div></div>
+            <select data-bind="style.shadows">
+              <option value="default">Default</option>
+              <option value="none">None</option>
+              <option value="strong">Strong</option>
+              <option value="glow">Accent glow</option>
+            </select>
+          </div>
+          <div class="row">
+            <div><div class="label">Accent scrollbar</div><div class="desc">Scrollbar in the accent color</div></div>
+            <label class="switch"><input type="checkbox" data-bind="style.scrollbar"><span></span></label>
+          </div>
+          <div class="row stacked">
+            <div><div class="label">Background image</div><div class="desc">Image URL (leave empty for none)</div></div>
+            <input class="text" type="url" placeholder="https://…/wallpaper.jpg" spellcheck="false" data-bind="style.bgImage">
+          </div>
+          <div class="row">
+            <div><div class="label">Background dimming</div><div class="desc">Keeps text readable</div></div>
+            <div class="range"><input type="range" min="0" max="95" step="5" data-bind="style.bgDim"><output data-output="style.bgDim"></output></div>
+          </div>
+        </div>
+
+        <h2>Page</h2>
+        <div class="card">
+          <div class="row">
+            <div><div class="label">Hide ads</div><div class="desc">Ad banners and placements</div></div>
+            <label class="switch"><input type="checkbox" data-bind="style.hideAds"><span></span></label>
+          </div>
+          <div class="row">
+            <div><div class="label">Animations</div><div class="desc">Transitions and motion</div></div>
+            <label class="switch"><input type="checkbox" data-bind="style.animations"><span></span></label>
+          </div>
+          <div class="row">
+            <div><div class="label">Reset style</div><div class="desc">Restore default style options</div></div>
+            <button class="button" id="style-reset">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="player" data-subtitle="Player stats and match analysis">
+        <h2>Preview</h2>
+        <div class="card">
+          <div class="preview">
+            <div class="avatar">P</div>
+            <div class="preview-body">
+              <div class="nick">Player</div>
+              <div class="fb-chips" id="preview-chips"></div>
+              <div class="empty" id="preview-empty"></div>
+            </div>
+          </div>
+        </div>
+
+        <h2>Match room</h2>
+        <div class="card">
+          <div class="row">
+            <div><div class="label">Stats under players</div><div class="desc">Show stats below every player</div></div>
+            <label class="switch"><input type="checkbox" data-bind="room.stats"><span></span></label>
+          </div>
+          <div class="row">
+            <div><div class="label">Match Intel</div><div class="desc">Opponent analysis and tips</div></div>
+            <label class="switch"><input type="checkbox" data-bind="room.intel"><span></span></label>
+          </div>
+          <div class="row">
+            <div><div class="label">Match range</div><div class="desc">How many recent matches to use</div></div>
+            <select data-bind="room.range">
+              <option value="20">Last 20</option>
+              <option value="50">Last 50</option>
+              <option value="100">Last 100</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="room-options">
+          <h2>Stats under the nickname</h2>
+          <div class="card toggles">
+            <label class="toggle"><input type="checkbox" data-bind="room.kd"><span>K/D</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.winrate"><span>Win rate</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.matches"><span>Matches</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.adr"><span>ADR</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.avgKills"><span>Avg kills</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.avgDeaths"><span>Avg deaths</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.avgAssists"><span>Avg assists</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.hs"><span>HS%</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.steam"><span>Steam</span></label>
+          </div>
+
+          <h2>Protection</h2>
+          <div class="card">
+            <div class="row">
+              <div><div class="label">Trust factor</div><div class="desc">0–100 from account age, matches, K/D, HS, WR</div></div>
+              <label class="switch"><input type="checkbox" data-bind="room.trust"><span></span></label>
+            </div>
+            <div class="row">
+              <div><div class="label">Smurf warning</div><div class="desc">New account with suspiciously good stats</div></div>
+              <label class="switch"><input type="checkbox" data-bind="room.smurf"><span></span></label>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast">Saved ✓</div>
+
+  <script src="../shared/colors.js"></script>
+  <script src="../shared/format.js"></script>
+  <script src="../shared/icons.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="../shared/themes.js"></script>
+  <script src="../shared/chips.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
