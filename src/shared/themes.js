@@ -177,5 +177,66 @@
     return rules.join("\n");
   }
 
-  FB.themes = { PRESETS, COLOR_KEYS, CUSTOM_BASE, FONTS, resolve, withDerivedColors, pickColors, buildVars, buildCss, fontUrl };
+  const SHARE_PREFIX = "FB1.";
+  const SHADOWS = ["default", "none", "strong", "glow"];
+  const RANGES = { roundness: [0, 200], borderWidth: [0, 3], scale: [80, 120], bgDim: [0, 95] };
+
+  function toBase64Url(text) {
+    const bytes = new TextEncoder().encode(text);
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function fromBase64Url(code) {
+    const binary = atob(code.replace(/-/g, "+").replace(/_/g, "/"));
+    return new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0)));
+  }
+
+  function exportCode(settings) {
+    const payload = { theme: settings.theme, style: settings.style };
+    if (settings.theme === "custom") payload.colors = pickColors(resolve(settings));
+    return SHARE_PREFIX + toBase64Url(JSON.stringify(payload));
+  }
+
+  function sanitizeStyle(raw, defaults) {
+    const style = {};
+    for (const [key, fallback] of Object.entries(defaults)) {
+      const value = raw?.[key];
+      if (typeof value !== typeof fallback) continue;
+      if (typeof value === "number") {
+        const [min, max] = RANGES[key] ?? [-Infinity, Infinity];
+        if (Number.isFinite(value)) style[key] = Math.min(max, Math.max(min, value));
+      } else {
+        style[key] = value;
+      }
+    }
+    if (style.font && !FONTS.some(f => f.id === style.font)) delete style.font;
+    if (style.shadows && !SHADOWS.includes(style.shadows)) delete style.shadows;
+    if (style.bgImage && !/^https?:\/\/\S+$/i.test(style.bgImage)) delete style.bgImage;
+    return { ...defaults, ...style };
+  }
+
+  function importCode(code, defaultStyle) {
+    const trimmed = String(code ?? "").trim();
+    if (!trimmed.startsWith(SHARE_PREFIX)) return null;
+
+    let payload;
+    try {
+      payload = JSON.parse(fromBase64Url(trimmed.slice(SHARE_PREFIX.length)));
+    } catch {
+      return null;
+    }
+    if (!payload || typeof payload !== "object") return null;
+
+    const style = sanitizeStyle(payload.style, defaultStyle);
+    if (payload.theme === "custom") {
+      const colors = Object.fromEntries(
+        COLOR_KEYS.filter(key => FB.colors.isHex(payload.colors?.[key])).map(key => [key, payload.colors[key].toLowerCase()])
+      );
+      return { theme: "custom", customTheme: colors, style };
+    }
+    if (!PRESETS.some(t => t.id === payload.theme)) return null;
+    return { theme: payload.theme, style };
+  }
+
+  FB.themes = { PRESETS, COLOR_KEYS, CUSTOM_BASE, FONTS, resolve, withDerivedColors, pickColors, buildVars, buildCss, fontUrl, exportCode, importCode };
 })();

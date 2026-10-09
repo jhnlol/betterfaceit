@@ -46,7 +46,8 @@
 
   const hideToast = debounce(() => $("#toast").classList.remove("show"), 1200);
 
-  function toast() {
+  function toast(message = "Saved ✓") {
+    $("#toast").textContent = message;
     $("#toast").classList.add("show");
     hideToast();
   }
@@ -56,7 +57,7 @@
   const flush = debounce(() => {
     const patch = pending;
     pending = {};
-    store.save(patch).then(toast);
+    store.save(patch).then(() => toast());
   }, 250);
 
   function save(patch) {
@@ -255,6 +256,42 @@
     });
   }
 
+  function bindShare() {
+    const field = $("#theme-code");
+
+    $("#theme-export").addEventListener("click", async () => {
+      const code = themes.exportCode(settings);
+      field.value = code;
+      field.classList.remove("invalid");
+      try {
+        await navigator.clipboard.writeText(code);
+        toast("Code copied ✓");
+      } catch {
+        field.select();
+        toast("Copy the code below");
+      }
+    });
+
+    const load = () => {
+      const patch = themes.importCode(field.value, store.DEFAULTS.style);
+      field.classList.toggle("invalid", !patch);
+      if (!patch) return toast("Invalid code");
+
+      Object.assign(settings, patch);
+      field.value = "";
+      fillColorEditor();
+      fillBindings();
+      renderThemes();
+      Object.assign(pending, patch);
+      flush();
+      toast("Theme loaded ✓");
+    };
+
+    $("#theme-import").addEventListener("click", load);
+    field.addEventListener("keydown", event => { if (event.key === "Enter") load(); });
+    field.addEventListener("input", () => field.classList.remove("invalid"));
+  }
+
   function renderPreview() {
     const { room } = settings;
     const { html } = chips.render(SAMPLE_PROFILE, SAMPLE_PLAYER, room);
@@ -288,6 +325,7 @@
 
     bindColorEditor();
     bindInputs();
+    bindShare();
     for (const tab of $$(".tab")) tab.addEventListener("click", () => openTab(tab.dataset.tab));
     $("#themes").addEventListener("click", event => {
       const button = event.target.closest("[data-theme]");

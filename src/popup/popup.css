@@ -160,6 +160,8 @@ select { padding: 5px 8px; cursor: pointer; }
 select:focus, .text:focus { border-color: var(--accent); }
 .button { padding: 5px 10px; font-weight: 600; cursor: pointer; }
 .button:hover { border-color: var(--accent); color: var(--accent); }
+.share { display: flex; gap: 6px; }
+.share .text { font: 12px Consolas, monospace; }
 
 .range { display: flex; align-items: center; gap: 8px; }
 .range output {
