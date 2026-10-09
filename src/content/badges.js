@@ -6,19 +6,11 @@
   const NAME_SELECTOR = '[class*="ListContentPlayer"] [class*="Nickname__Name"]';
   const CARD_SELECTOR = '[class*="styles__Holder"]';
   const MIDDLE_SELECTOR = '[class*="MiddleSlotWrapper"]';
-  const CHIP_KEYS = ["trust", "smurf", "kd", "winrate", "matches", "adr", "avgKills", "avgDeaths", "avgAssists", "hs", "steam"];
+  const CHIP_KEYS = ["country", "trust", "smurf", "kd", "winrate", "matches", "adr", "avgKills", "avgDeaths", "avgAssists", "hs", "steam"];
 
   const CSS = `
     .${ROW_CLASS} {
-      --fb-surface: var(--f-surface-level-3, #242424);
-      --fb-line: var(--f-surface-level-4, #2e2e2e);
-      --fb-text: var(--f-white-full, #f1f1f1);
-      --fb-muted: var(--f-white-medium, #a7a7a7);
-      --fb-win: var(--f-common-outcome-win, #05ff00);
-      --fb-loss: var(--f-common-outcome-loss, #ef0000);
-      --fb-caution: var(--f-common-caution, #ffc700);
-      --fb-accent: var(--f-core-primary-enabled, #ff4b00);
-      --fb-font: var(--f-font-family, sans-serif);
+      ${chips.PAGE_VARS}
       margin: 6px 0 0 var(--fb-indent, 0px);
     }
     ${chips.CSS}

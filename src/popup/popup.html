@@ -146,6 +146,10 @@
             <label class="switch"><input type="checkbox" data-bind="room.intel"><span></span></label>
           </div>
           <div class="row">
+            <div><div class="label">Team average ELO</div><div class="desc">Shown under each team name</div></div>
+            <label class="switch"><input type="checkbox" data-bind="room.teamElo"><span></span></label>
+          </div>
+          <div class="row">
             <div><div class="label">Match range</div><div class="desc">How many recent matches to use</div></div>
             <select data-bind="room.range">
               <option value="20">Last 20</option>
@@ -158,6 +162,7 @@
         <div id="room-options">
           <h2>Stats under the nickname</h2>
           <div class="card toggles">
+            <label class="toggle"><input type="checkbox" data-bind="room.country"><span>Country</span></label>
             <label class="toggle"><input type="checkbox" data-bind="room.kd"><span>K/D</span></label>
             <label class="toggle"><input type="checkbox" data-bind="room.winrate"><span>Win rate</span></label>
             <label class="toggle"><input type="checkbox" data-bind="room.matches"><span>Matches</span></label>

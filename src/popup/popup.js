@@ -30,6 +30,7 @@
   const SAMPLE_PROFILE = {
     stats: { n: 20, kd: 1.24, winrate: 55, adr: 86, avgK: 18.3, avgD: 14.8, avgA: 4.6, hs: 48 },
     matchesTotal: 1284,
+    country: "pl",
     trust: { score: 68, level: "mid", label: "Neutral", reasons: ["−10 only 140 matches"] },
     smurf: { flag: true, reasons: ["140 matches", "K/D 1.24"] }
   };

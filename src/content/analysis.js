@@ -143,6 +143,7 @@
       eloTrend: elos.length >= 2 ? elos[0] - elos[elos.length - 1] : null,
       accountAgeDays: Number.isNaN(created) ? null : Math.floor((Date.now() - created) / 864e5),
       verified: Boolean(user?.verified),
+      country: /^[a-z]{2}$/i.test(user?.country ?? "") ? user.country.toLowerCase() : null,
       memberships: user?.memberships ?? []
     };
 

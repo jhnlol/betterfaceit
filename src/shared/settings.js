@@ -19,7 +19,9 @@
     room: Object.freeze({
       stats: true,
       intel: true,
+      teamElo: true,
       range: 20,
+      country: true,
       trust: true,
       smurf: true,
       kd: true,

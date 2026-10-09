@@ -1,6 +1,18 @@
 (() => {
   const FB = (globalThis.FB ??= {});
 
+  const PAGE_VARS = `
+    --fb-surface: var(--f-surface-level-3, #242424);
+    --fb-line: var(--f-surface-level-4, #2e2e2e);
+    --fb-text: var(--f-white-full, #f1f1f1);
+    --fb-muted: var(--f-white-medium, #a7a7a7);
+    --fb-win: var(--f-common-outcome-win, #05ff00);
+    --fb-loss: var(--f-common-outcome-loss, #ef0000);
+    --fb-caution: var(--f-common-caution, #ffc700);
+    --fb-accent: var(--f-core-primary-enabled, #ff4b00);
+    --fb-font: var(--f-font-family, sans-serif);
+  `;
+
   const CSS = `
     .fb-chips {
       --fb-good: color-mix(in oklch, var(--fb-win) 85%, white);
@@ -68,6 +80,13 @@
       letter-spacing: .5px;
     }
     .fb-chip.fb-muted { opacity: .6; }
+    .fb-chip .fb-flag {
+      width: 16px;
+      height: 11px;
+      border-radius: 2px;
+      object-fit: cover;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .25);
+    }
     a.fb-chip {
       color: var(--fb-muted);
       text-decoration: none;
@@ -117,8 +136,27 @@
     return chips;
   }
 
+  function country(code) {
+    const name = regionNames?.of(code.toUpperCase()) ?? code.toUpperCase();
+    return {
+      text: code.toUpperCase(),
+      html: `<span class="fb-chip" title="${FB.format.escape(name)}">` +
+            `<img class="fb-flag" src="https://flagcdn.com/w40/${code}.png" alt="" loading="lazy">` +
+            `<span class="fb-label">${code.toUpperCase()}</span></span>`
+    };
+  }
+
+  const regionNames = (() => {
+    try {
+      return new Intl.DisplayNames(["en"], { type: "region" });
+    } catch {
+      return null;
+    }
+  })();
+
   function render(profile, player, room) {
     const chips = [];
+    if (room.country && profile?.country) chips.push(country(profile.country));
 
     if (!profile) {
       chips.push(note("Loading…"));
@@ -148,5 +186,5 @@
     return { html: chips.map(c => c.html).join(""), title: recent + summary };
   }
 
-  FB.chips = { CSS, render };
+  FB.chips = { CSS, PAGE_VARS, render };
 })();
