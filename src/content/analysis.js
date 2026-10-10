@@ -11,6 +11,8 @@
     return present.length ? present.reduce((a, b) => a + b, 0) / present.length : null;
   };
 
+  const inRange = (value, min, max) => (value !== null && value >= min && value <= max ? value : null);
+
   const sum = (items, key) => items.reduce((total, item) => total + (item[key] || 0), 0);
 
   function parseGame(raw) {
@@ -60,45 +62,67 @@
     return stats;
   }
 
+  // 0 at `from`, 1 at `to`, linear in between (works with from > to too).
+  const ramp = (value, from, to) =>
+    value === null || value === undefined ? 0 : Math.max(0, Math.min(1, (value - from) / (to - from)));
+
   function trustFactor(profile) {
-    const { stats, accountAgeDays: age, matchesTotal: total, eloTrend } = profile;
-    const reasons = [];
-    let score = 100;
-    const penalize = (points, why) => {
-      score -= points;
-      reasons.push(`−${points} ${why}`);
-    };
+    const { stats, accountAgeDays: age, matchesTotal: total, eloTrend, lifetimeKd, lifetimeHs } = profile;
+    const elo = num(profile.elo);
+    const penalties = [];
+    const bonuses = [];
+    const penalize = (points, why) => points >= 0.5 && penalties.push([points, why]);
 
-    if (age !== null) {
-      if (age < 30) penalize(25, `account is ${age} days old`);
-      else if (age < 90) penalize(15, `account is ${age} days old`);
-      else if (age < 180) penalize(7, `account is ${age} days old`);
-    }
-    if (total !== null) {
-      if (total < 50) penalize(20, `only ${format.matches(total)}`);
-      else if (total < 150) penalize(10, `only ${format.matches(total)}`);
-      else if (total < 300) penalize(4, format.matches(total));
-    }
+    // Account maturity: smooth curves instead of hard steps.
+    if (age !== null) penalize(25 * (1 - ramp(age, 0, 365)) ** 2, `account is ${age} days old`);
+    if (total !== null) penalize(20 * (1 - ramp(total, 0, 500)) ** 2, `only ${format.matches(total)}`);
+
+    // Strong stats on a long-established account are far less suspicious than on a fresh one.
+    const maturity = age === null && total === null ? 0.5 : (ramp(age, 0, 730) + ramp(total, 0, 1000)) / (age !== null && total !== null ? 2 : 1);
+    // Few recent matches = noisy stats, so weigh them less.
+    const confidence = ramp(stats.n ?? 0, 3, 20);
+    const exposure = (1 - 0.6 * maturity) * confidence;
+    // High-ELO players legitimately post higher numbers.
+    const skill = ramp(elo, 2000, 3500);
+
     if (stats.n) {
-      if (stats.kd > 1.7) penalize(15, `K/D ${stats.kd.toFixed(2)}`);
-      else if (stats.kd > 1.4) penalize(7, `K/D ${stats.kd.toFixed(2)}`);
-      if (stats.hs > 65) penalize(12, `HS ${Math.round(stats.hs)}%`);
-      else if (stats.hs > 58) penalize(5, `HS ${Math.round(stats.hs)}%`);
-      if (stats.winrate > 75) penalize(10, `WR ${Math.round(stats.winrate)}%`);
-      if (stats.adr > 115) penalize(8, `ADR ${Math.round(stats.adr)}`);
+      const kdLimit = 1.25 + 0.25 * skill;
+      penalize(18 * exposure * ramp(stats.kd, kdLimit, kdLimit + 0.6), `K/D ${stats.kd.toFixed(2)}`);
+      penalize(14 * exposure * ramp(stats.hs, 58, 75), `HS ${Math.round(stats.hs)}%`);
+      const adrLimit = 95 + 10 * skill;
+      penalize(10 * exposure * ramp(stats.adr, adrLimit, adrLimit + 30), `ADR ${Math.round(stats.adr)}`);
+      penalize(10 * exposure * ramp(stats.winrate, 65, 85), `WR ${Math.round(stats.winrate)}%`);
     }
-    if (eloTrend > 300) penalize(10, `+${eloTrend} ELO in ${format.matches(stats.n)}`);
-
-    if (profile.verified) {
-      score += 5;
-      reasons.push("+5 verified account");
-    }
-    if (profile.memberships.includes("premium")) {
-      score += 3;
-      reasons.push("+3 premium");
+    if (eloTrend !== null) {
+      penalize(12 * (1 - 0.5 * maturity) * ramp(eloTrend, 200, 450), `${format.signed(eloTrend)} ELO in ${format.matches(stats.n)}`);
     }
 
-    score = Math.max(0, Math.min(100, score));
+    // Sudden jump compared to lifetime stats (account sharing, new "tools") — not reduced by maturity,
+    // since it is exactly how an old account turns suspicious.
+    if (stats.n && total >= 100) {
+      if (lifetimeKd !== null) {
+        penalize(15 * confidence * ramp(stats.kd - lifetimeKd, 0.25, 0.75),
+          `K/D jumped ${lifetimeKd.toFixed(2)} → ${stats.kd.toFixed(2)}`);
+      }
+      if (lifetimeHs !== null && stats.hs !== null) {
+        penalize(12 * confidence * ramp(stats.hs - lifetimeHs, 8, 20),
+          `HS jumped ${Math.round(lifetimeHs)}% → ${Math.round(stats.hs)}%`);
+      }
+    }
+
+    if (profile.verified) bonuses.push([5, "verified account"]);
+    if (profile.memberships.includes("premium")) bonuses.push([3, "premium"]);
+
+    const rounded = list => list.map(([points, why]) => [Math.round(points), why]).filter(([points]) => points > 0);
+    const lost = rounded(penalties).sort((a, b) => b[0] - a[0]);
+    const gained = rounded(bonuses);
+    const reasons = [
+      ...lost.map(([points, why]) => `−${points} ${why}`),
+      ...gained.map(([points, why]) => `+${points} ${why}`)
+    ];
+
+    const totalOf = list => list.reduce((acc, [points]) => acc + points, 0);
+    const score = Math.max(0, Math.min(100, 100 - totalOf(lost) + totalOf(gained)));
     const tone = score >= 75 ? "good" : score >= 50 ? "mid" : "bad";
     const label = { good: "Trusted", mid: "Neutral", bad: "Suspicious" }[tone];
     return { score, level: tone, label, reasons };
@@ -140,6 +164,8 @@
       form: games.slice(0, 5).map(g => (g.win ? "W" : "L")),
       maps: Object.fromEntries([...byMap].map(([map, list]) => [map, summarize(list)])),
       matchesTotal: num(lifetime?.lifetime?.m1),
+      lifetimeKd: inRange(num(lifetime?.lifetime?.k5), 0.1, 5),
+      lifetimeHs: inRange(num(lifetime?.lifetime?.k6), 1, 100),
       eloTrend: elos.length >= 2 ? elos[0] - elos[elos.length - 1] : null,
       accountAgeDays: Number.isNaN(created) ? null : Math.floor((Date.now() - created) / 864e5),
       verified: Boolean(user?.verified),

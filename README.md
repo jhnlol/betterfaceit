@@ -36,7 +36,7 @@ A row of stats under every player's nickname, computed from their last 20, 50 or
 - Steam profile link
 
 ### 🛡️ Trust factor and smurf warning
-- **Trust factor (0–100)**: a score based on account age, total matches, K/D, HS%, win rate, ADR and recent ELO gain, with a bonus for verified and premium accounts. Hover over it to see why the score is what it is.
+- **Trust factor (0–100)**: a score based on account age and total matches, recent K/D, HS%, ADR, win rate and ELO gain (judged against the player's ELO, sample size and account maturity), plus sudden jumps compared to lifetime stats. Verified and premium accounts get a small bonus. Hover over it to see why the score is what it is.
 - **Smurf warning**: flags new or low-match accounts with suspiciously strong stats.
 
 > These are heuristics, not proof. A low score or a smurf flag doesn't mean anyone is cheating.
