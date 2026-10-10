@@ -19,7 +19,9 @@
     "style.roundness": v => (v === 0 ? "Sharp" : v === 100 ? "Default" : `${v}%`),
     "style.borderWidth": v => (v === 0 ? "None" : `${v}px`),
     "style.scale": v => `${v}%`,
-    "style.bgDim": v => `${v}%`
+    "style.bgDim": v => `${v}%`,
+    "style.panelOpacity": v => (v === 100 ? "Solid" : `${v}%`),
+    "style.blur": v => (v === 0 ? "Off" : `${v}px`)
   };
 
   const VALIDATORS = {
@@ -30,6 +32,13 @@
   const SAMPLE_PROFILE = {
     stats: { n: 20, kd: 1.24, winrate: 55, adr: 86, avgK: 18.3, avgD: 14.8, avgA: 4.6, hs: 48 },
     matchesTotal: 1284,
+    form: ["W", "W", "L", "W", "L"],
+    role: {
+      label: "Entry fragger",
+      short: "Entry",
+      secondary: null,
+      summary: "Playstyle: Entry fragger\nOpening duels: 27% of rounds, 58% won"
+    },
     country: "pl",
     trust: { score: 68, level: "mid", label: "Neutral", reasons: ["−10 only 140 matches"] },
     smurf: { flag: true, reasons: ["140 matches", "K/D 1.24"] }
@@ -192,6 +201,13 @@
       }
     });
 
+    $("#custom-random").addEventListener("click", () => {
+      settings.customTheme = themes.pickColors(themes.withDerivedColors(themes.generate()));
+      fillColorEditor();
+      renderThemes();
+      save({ customTheme: settings.customTheme });
+    });
+
     $("#custom-base").addEventListener("change", event => {
       const preset = themes.PRESETS.find(t => t.id === event.target.value);
       event.target.value = "";
@@ -283,6 +299,8 @@
       fillColorEditor();
       fillBindings();
       renderThemes();
+      $("#custom-css").value = settings.customCss;
+      renderCssSize();
       Object.assign(pending, patch);
       flush();
       toast("Theme loaded ✓");
@@ -293,6 +311,36 @@
     field.addEventListener("input", () => field.classList.remove("invalid"));
   }
 
+  // chrome.storage.sync allows 8 KB per item.
+  const MAX_CSS_BYTES = 8000;
+
+  function renderCssSize() {
+    const bytes = new TextEncoder().encode(JSON.stringify($("#custom-css").value)).length;
+    $("#css-size").textContent = `${(bytes / 1024).toFixed(1)} / ${(MAX_CSS_BYTES / 1024).toFixed(1)} KB`;
+    return bytes <= MAX_CSS_BYTES;
+  }
+
+  function bindCustomCss() {
+    const field = $("#custom-css");
+    field.maxLength = themes.MAX_CSS;
+    field.value = settings.customCss;
+    renderCssSize();
+
+    field.addEventListener("input", () => {
+      const fits = renderCssSize();
+      field.classList.toggle("invalid", !fits);
+      if (!fits) return;
+      settings.customCss = field.value;
+      save({ customCss: field.value });
+    });
+    field.addEventListener("keydown", event => {
+      if (event.key !== "Tab") return;
+      event.preventDefault();
+      field.setRangeText("  ", field.selectionStart, field.selectionEnd, "end");
+      field.dispatchEvent(new Event("input"));
+    });
+  }
+
   function renderPreview() {
     const { room } = settings;
     const { html } = chips.render(SAMPLE_PROFILE, SAMPLE_PLAYER, room);
@@ -300,6 +348,7 @@
 
     $("#room-options").classList.toggle("disabled", !room.stats);
     $("#preview-chips").innerHTML = room.stats ? html : "";
+    $("#preview-chips").dataset.style = room.chipStyle;
     $("#preview-empty").textContent = empty;
   }
 
@@ -327,6 +376,7 @@
     bindColorEditor();
     bindInputs();
     bindShare();
+    bindCustomCss();
     for (const tab of $$(".tab")) tab.addEventListener("click", () => openTab(tab.dataset.tab));
     $("#themes").addEventListener("click", event => {
       const button = event.target.closest("[data-theme]");

@@ -44,28 +44,77 @@
           <div class="card" id="custom-colors">
             <div class="row">
               <div><div class="label">Start from</div><div class="desc">Copy the colors of a preset</div></div>
-              <select id="custom-base"></select>
+              <div class="actions">
+                <select id="custom-base"></select>
+                <button class="button" id="custom-random" title="Generate a random palette">Random</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <h2>Style</h2>
+        <h2>Background</h2>
+        <div class="card">
+          <div class="row">
+            <div><div class="label">Effect</div><div class="desc">Decoration behind the page</div></div>
+            <select data-bind="style.bgEffect">
+              <option value="none">None</option>
+              <option value="glow">Accent glow</option>
+              <option value="aurora">Aurora</option>
+              <option value="grid">Grid</option>
+              <option value="dots">Dots</option>
+              <option value="vignette">Vignette</option>
+            </select>
+          </div>
+          <div class="row stacked">
+            <div><div class="label">Background image</div><div class="desc">Image URL (leave empty for none)</div></div>
+            <input class="text" type="url" placeholder="https://…/wallpaper.jpg" spellcheck="false" data-bind="style.bgImage">
+          </div>
+          <div class="row">
+            <div><div class="label">Image dimming</div><div class="desc">Keeps text readable</div></div>
+            <div class="range"><input type="range" min="0" max="95" step="5" data-bind="style.bgDim"><output data-output="style.bgDim"></output></div>
+          </div>
+        </div>
+
+        <h2>Panels</h2>
         <div class="card">
           <div class="row">
             <div><div class="label">Roundness</div><div class="desc">Sharp ↔ very rounded</div></div>
             <div class="range"><input type="range" min="0" max="200" step="10" data-bind="style.roundness"><output data-output="style.roundness"></output></div>
           </div>
           <div class="row">
-            <div><div class="label">Panel borders</div><div class="desc">Outline width around cards</div></div>
+            <div><div class="label">Borders</div><div class="desc">Outline width around cards</div></div>
             <div class="range"><input type="range" min="0" max="3" step="1" data-bind="style.borderWidth"><output data-output="style.borderWidth"></output></div>
           </div>
           <div class="row">
-            <div><div class="label">Font</div><div class="desc">Typeface used on the page</div></div>
-            <select data-bind="style.font" id="font-select"></select>
+            <div><div class="label">Border color</div><div class="desc">Used when borders are on</div></div>
+            <select data-bind="style.borderColor">
+              <option value="theme">Theme</option>
+              <option value="accent">Accent</option>
+            </select>
           </div>
           <div class="row">
-            <div><div class="label">Scale</div><div class="desc">Size of the whole interface</div></div>
-            <div class="range"><input type="range" min="80" max="120" step="5" data-bind="style.scale"><output data-output="style.scale"></output></div>
+            <div><div class="label">Accent line</div><div class="desc">Colored edge on cards</div></div>
+            <select data-bind="style.panelAccent">
+              <option value="none">None</option>
+              <option value="top">Top</option>
+              <option value="left">Left</option>
+            </select>
+          </div>
+          <div class="row">
+            <div><div class="label">Hover effect</div><div class="desc">Highlight the card under the mouse</div></div>
+            <select data-bind="style.hover">
+              <option value="none">None</option>
+              <option value="glow">Accent glow</option>
+              <option value="outline">Accent outline</option>
+            </select>
+          </div>
+          <div class="row">
+            <div><div class="label">Opacity</div><div class="desc">Lower it to see the background through</div></div>
+            <div class="range"><input type="range" min="40" max="100" step="5" data-bind="style.panelOpacity"><output data-output="style.panelOpacity"></output></div>
+          </div>
+          <div class="row">
+            <div><div class="label">Glass blur</div><div class="desc">Frosted glass behind panels</div></div>
+            <div class="range"><input type="range" min="0" max="20" step="2" data-bind="style.blur"><output data-output="style.blur"></output></div>
           </div>
           <div class="row">
             <div><div class="label">Shadows</div><div class="desc">Under windows and menus</div></div>
@@ -76,22 +125,30 @@
               <option value="glow">Accent glow</option>
             </select>
           </div>
+        </div>
+
+        <h2>Text &amp; size</h2>
+        <div class="card">
           <div class="row">
-            <div><div class="label">Accent scrollbar</div><div class="desc">Scrollbar in the accent color</div></div>
-            <label class="switch"><input type="checkbox" data-bind="style.scrollbar"><span></span></label>
-          </div>
-          <div class="row stacked">
-            <div><div class="label">Background image</div><div class="desc">Image URL (leave empty for none)</div></div>
-            <input class="text" type="url" placeholder="https://…/wallpaper.jpg" spellcheck="false" data-bind="style.bgImage">
+            <div><div class="label">Font</div><div class="desc">Typeface used on the page</div></div>
+            <select data-bind="style.font" id="font-select"></select>
           </div>
           <div class="row">
-            <div><div class="label">Background dimming</div><div class="desc">Keeps text readable</div></div>
-            <div class="range"><input type="range" min="0" max="95" step="5" data-bind="style.bgDim"><output data-output="style.bgDim"></output></div>
+            <div><div class="label">Scale</div><div class="desc">Page zoom on FACEIT</div></div>
+            <div class="range"><input type="range" min="80" max="120" step="5" data-bind="style.scale"><output data-output="style.scale"></output></div>
           </div>
         </div>
 
         <h2>Page</h2>
         <div class="card">
+          <div class="row">
+            <div><div class="label">Accent scrollbar</div><div class="desc">Scrollbar in the accent color</div></div>
+            <label class="switch"><input type="checkbox" data-bind="style.scrollbar"><span></span></label>
+          </div>
+          <div class="row">
+            <div><div class="label">Thin scrollbar</div><div class="desc">Slimmer scrollbars everywhere</div></div>
+            <label class="switch"><input type="checkbox" data-bind="style.thinScrollbar"><span></span></label>
+          </div>
           <div class="row">
             <div><div class="label">Hide ads</div><div class="desc">Ad banners and placements</div></div>
             <label class="switch"><input type="checkbox" data-bind="style.hideAds"><span></span></label>
@@ -103,6 +160,14 @@
           <div class="row">
             <div><div class="label">Reset style</div><div class="desc">Restore default style options</div></div>
             <button class="button" id="style-reset">Reset</button>
+          </div>
+        </div>
+
+        <h2>Custom CSS</h2>
+        <div class="card">
+          <div class="row stacked">
+            <div><div class="label">Your own rules</div><div class="desc">Applied on top of everything above · <span id="css-size"></span></div></div>
+            <textarea class="text code" id="custom-css" rows="6" spellcheck="false" placeholder="/* e.g. */&#10;body { letter-spacing: .2px; }"></textarea>
           </div>
         </div>
 
@@ -146,8 +211,20 @@
             <label class="switch"><input type="checkbox" data-bind="room.intel"><span></span></label>
           </div>
           <div class="row">
+            <div><div class="label">Player card on hover</div><div class="desc">Details, ELO graph and playstyle</div></div>
+            <label class="switch"><input type="checkbox" data-bind="room.hoverCard"><span></span></label>
+          </div>
+          <div class="row">
             <div><div class="label">Team average ELO</div><div class="desc">Shown under each team name</div></div>
             <label class="switch"><input type="checkbox" data-bind="room.teamElo"><span></span></label>
+          </div>
+          <div class="row">
+            <div><div class="label">Stat style</div><div class="desc">Look of the stats under players</div></div>
+            <select data-bind="room.chipStyle">
+              <option value="default">Default</option>
+              <option value="minimal">Minimal</option>
+              <option value="filled">Filled</option>
+            </select>
           </div>
           <div class="row">
             <div><div class="label">Match range</div><div class="desc">How many recent matches to use</div></div>
@@ -163,6 +240,8 @@
           <h2>Stats under the nickname</h2>
           <div class="card toggles">
             <label class="toggle"><input type="checkbox" data-bind="room.country"><span>Country</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.role"><span>Role</span></label>
+            <label class="toggle"><input type="checkbox" data-bind="room.form"><span>Form</span></label>
             <label class="toggle"><input type="checkbox" data-bind="room.kd"><span>K/D</span></label>
             <label class="toggle"><input type="checkbox" data-bind="room.winrate"><span>Win rate</span></label>
             <label class="toggle"><input type="checkbox" data-bind="room.matches"><span>Matches</span></label>

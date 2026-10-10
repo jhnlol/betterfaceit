@@ -21,19 +21,28 @@
 ## Features
 
 ### 🎨 Look
-- **11 built-in themes**: FACEIT (native), Midnight, Toxic, Purple Haze, Blood, Synthwave, Ocean, Royal Gold, AMOLED, Nord and Dracula
-- **Custom theme editor**: start from any preset and set your own colors
-- **Style controls**: roundness, panel borders, interface scale, shadows (none / strong / accent glow) and an accent-colored scrollbar
-- **Fonts**: Inter, Montserrat, Poppins, Rajdhani, Exo 2, Chakra Petch, JetBrains Mono, or system fonts
-- **Background image** from any URL, with adjustable dimming so text stays readable
-- **Page tweaks**: hide ads, turn off animations
+- **15 built-in themes**: FACEIT (native), Midnight, Toxic, Purple Haze, Blood, Synthwave, Ocean, Royal Gold, AMOLED, Nord, Dracula, Tokyo Night, Catppuccin, Gruvbox and Rosé Pine
+- **Custom theme editor**: start from any preset or generate a random palette, then set your own colors
+- **Background**: effects (accent glow, aurora, grid, dots, vignette) and an image from any URL, with adjustable dimming
+- **Panels**: roundness, borders (theme or accent color), accent line, hover highlight, opacity, frosted-glass blur and shadows (none / strong / accent glow)
+- **Fonts**: Inter, Montserrat, Poppins, Rajdhani, Exo 2, Chakra Petch, JetBrains Mono, or system fonts, plus page zoom
+- **Page tweaks**: accent and thin scrollbars, hide ads, turn off animations
+- **Custom CSS**: your own rules on top of everything, included in exported theme codes
 
 ### 📊 Stats in the match room
-A row of stats under every player's nickname, computed from their last 20, 50 or 100 matches. You choose which ones to show:
+A row of stats inside every player's card, computed from their last 20, 50 or 100 matches, in a default, minimal or filled style. You choose which ones to show:
 
+- Playstyle role (AWP, Entry, Lurk, Support, Rifler) and last-5 form
 - K/D, win rate, match count, ADR
 - Average kills, deaths and assists, HS%
 - Steam profile link
+
+Hover over a player to open a **player card**: ELO graph and trend, playstyle with tendency meters compared to an average player, recent stats against career K/D, their maps and the trust factor breakdown.
+
+### 🧭 Playstyle
+Each player gets a role read from FACEIT's extended stats: how often they take the opening duel (and win it), how often they end up alone in a 1vX, how many flashes and how much nade damage they throw, and what share of their kills are with the AWP. When the map is known, the role on that map is used too, so a part-time AWPer shows up as the AWP on the map where they pick it up.
+
+> FACEIT doesn't record positions, so which site a player goes to can't be known without parsing demos. "Lurker" means a player who rarely opens rounds and often ends up alone late in them.
 
 ### 🛡️ Trust factor and smurf warning
 - **Trust factor (0–100)**: a score based on account age and total matches, recent K/D, HS%, ADR, win rate and ELO gain (judged against the player's ELO, sample size and account maturity), plus sudden jumps compared to lifetime stats. Verified and premium accounts get a small bonus. Hover over it to see why the score is what it is.
@@ -45,6 +54,7 @@ A row of stats under every player's nickname, computed from their last 20, 50 or
 A side panel in the match room that analyzes the enemy team:
 
 - Overview of the team and the picked map
+- Playstyle of every player and the team's lineup (AWP, entry, lurk, support), with how to play against each of them
 - Their strengths and weaknesses
 - Tips on how to win
 - Their most played maps

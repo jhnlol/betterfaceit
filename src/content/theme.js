@@ -3,6 +3,7 @@
 
   const STYLE_ID = `${dom.OWN_PREFIX}-theme`;
   const FONT_ID = `${dom.OWN_PREFIX}-font`;
+  const CUSTOM_ID = `${dom.OWN_PREFIX}-custom-css`;
 
   const RGB = /rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)\s*(,\s*[\d.]+\s*)?\)/g;
   const PIXELS = /^(\d+(?:\.\d+)?)px$/;
@@ -24,26 +25,48 @@
     [[239, 0, 0], t => t.loss]
   ];
 
+  const BACKGROUND_PROP = /^background(-color)?$/;
+
   const state = {
     theme: null,
     style: null,
+    customCss: "",
     colorMap: null,
     rewriteKey: null,
     touched: new Map(),
     seen: new WeakSet()
   };
 
-  function buildColorMap(theme) {
-    if (theme.native) return null;
-    const vars = themes.buildVars(theme);
-    return new Map(FACEIT_COLORS.map(([rgb, pick]) => [rgb.join(","), colors.hexToRgb(pick(theme, vars))]));
+  const usesGlass = style => style.panelOpacity < 100;
+
+  // rgb key -> { rgb: replacement color, level: surface level whose --fb-glass-N var backgrounds use }
+  function buildColorMap(theme, style) {
+    const map = new Map();
+    if (!theme.native) {
+      const vars = themes.buildVars(theme);
+      for (const [rgb, pick] of FACEIT_COLORS) map.set(rgb.join(","), { rgb: colors.hexToRgb(pick(theme, vars)) });
+    }
+    if (usesGlass(style)) {
+      themes.NATIVE_SURFACES.forEach((hex, level) => {
+        const key = colors.hexToRgb(hex).join(",");
+        map.set(key, { ...map.get(key), level });
+      });
+    }
+    return map.size ? map : null;
   }
 
-  function recolor(value) {
+  function recolor(value, prop) {
+    const background = BACKGROUND_PROP.test(prop);
     return value.replace(RGB, (match, r, g, b, a) => {
       const to = state.colorMap.get(`${r},${g},${b}`);
-      if (!to) return match;
-      return a ? `rgba(${to.join(", ")}${a})` : `rgb(${to.join(", ")})`;
+      if (background && to?.level !== undefined) {
+        const glass = `var(--fb-glass-${to.level})`;
+        if (!a) return glass;
+        const opacity = parseFloat(a.slice(a.indexOf(",") + 1)) * 100;
+        return `color-mix(in srgb, ${glass} ${opacity}%, transparent)`;
+      }
+      if (!to?.rgb) return match;
+      return a ? `rgba(${to.rgb.join(", ")}${a})` : `rgb(${to.rgb.join(", ")})`;
     });
   }
 
@@ -70,7 +93,7 @@
       const value = style.getPropertyValue(prop);
 
       if (state.colorMap && value.includes("rgb")) {
-        const next = recolor(value);
+        const next = recolor(value, prop);
         if (next !== value) changes.push([prop, next]);
       }
 
@@ -128,36 +151,53 @@
 
   function injectCss() {
     dom.upsertStyle(STYLE_ID, themes.buildCss(state.theme, state.style), { last: true });
+    dom.upsertStyle(CUSTOM_ID, state.customCss, { last: true });
     applyFont();
   }
 
+  // Scale is real browser zoom (set by the background worker). Only touch it when the option is in
+  // use or was just turned back to 100%, so a user's own Ctrl +/- zoom is left alone otherwise.
+  async function applyZoom(scale) {
+    try {
+      const { appliedScale = 100 } = await chrome.storage.local.get("appliedScale");
+      if (scale === 100 && appliedScale === 100) return;
+      await chrome.runtime.sendMessage({ type: "fb-zoom", factor: scale / 100 });
+      if (appliedScale !== scale) await chrome.storage.local.set({ appliedScale: scale });
+    } catch {}
+  }
+
   function apply(settings) {
+    applyZoom(settings.style.scale);
     state.theme = themes.resolve(settings);
     state.style = settings.style;
+    state.customCss = settings.customCss;
     injectCss();
 
     const key = JSON.stringify([
       state.theme.native ? null : themes.pickColors(state.theme),
-      state.style.roundness !== 100
+      state.style.roundness !== 100,
+      usesGlass(state.style)
     ]);
     if (key === state.rewriteKey) return;
     state.rewriteKey = key;
 
     restoreSheets();
-    state.colorMap = buildColorMap(state.theme);
+    state.colorMap = buildColorMap(state.theme, state.style);
     sheets.setEnabled(needsRewrite());
     rewriteSheets();
   }
 
   store.load().then(apply);
   store.onChange((settings, changed) => {
-    if (changed.has("theme") || changed.has("customTheme") || changed.has("style")) apply(settings);
+    if (changed.has("theme") || changed.has("customTheme") || changed.has("style") || changed.has("customCss")) apply(settings);
   });
 
   dom.onMutation(() => {
     if (!state.theme) return;
-    const el = document.getElementById(STYLE_ID);
-    if (el) dom.keepLast(el);
+    for (const id of [STYLE_ID, CUSTOM_ID]) {
+      const el = document.getElementById(id);
+      if (el) dom.keepLast(el);
+    }
     rewriteSheets();
   });
 

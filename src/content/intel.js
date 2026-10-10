@@ -29,7 +29,7 @@
     .launcher {
       position: fixed;
       top: 50%;
-      right: 0;
+      right: var(--rail, 0px);
       z-index: 2147483000;
       transform: translateY(-50%);
       writing-mode: vertical-rl;
@@ -48,13 +48,13 @@
     .panel {
       position: fixed;
       top: 72px;
-      right: 16px;
+      right: calc(16px + var(--rail, 0px));
       bottom: 16px;
       z-index: 2147483001;
       display: flex;
       flex-direction: column;
       width: 390px;
-      max-width: calc(100vw - 32px);
+      max-width: calc(100vw - 32px - var(--rail, 0px));
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: calc(12 * var(--radius));
@@ -215,6 +215,59 @@
       animation: spin .8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .body.busy { opacity: .55; transition: opacity .15s; }
+
+    h3 small { margin-left: 6px; font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+    .lineup { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .lineup span {
+      padding: 4px 8px;
+      border-radius: calc(6 * var(--radius));
+      background: var(--surface-1);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .lineup b { color: var(--text); }
+    .styles { display: flex; flex-direction: column; gap: 8px; }
+    .style {
+      padding: 10px 12px;
+      border: 1px solid var(--surface-2);
+      border-left: 3px solid var(--accent);
+      border-radius: calc(9 * var(--radius));
+      background: var(--surface-1);
+    }
+    .style.rifler { border-left-color: var(--line); }
+    .style-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .style-head .nick { font-size: 13px; }
+    .role-tag {
+      flex-shrink: 0;
+      padding: 2px 6px;
+      border-radius: calc(5 * var(--radius));
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    .role-tag.second { background: var(--surface-2); color: var(--muted); }
+    .style-head .src { margin-left: auto; flex-shrink: 0; font-size: 10px; color: var(--muted); }
+    .style p { font-size: 12px; color: var(--text-soft); }
+    .style p.tip { margin-top: 4px; color: var(--muted); }
+    .style p.tip::before { content: "→ "; color: var(--accent); font-weight: 800; }
+    .style p.map-note { margin-top: 4px; color: var(--mid); }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
+    .metrics span {
+      padding: 4px 2px;
+      border-radius: calc(5 * var(--radius));
+      background: var(--surface-2);
+      font-size: 9.5px;
+      text-align: center;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .metrics b { display: block; font-size: 12px; color: var(--text); text-transform: none; }
+    .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .tags span { padding: 2px 6px; border-radius: calc(5 * var(--radius)); background: var(--surface-2); font-size: 10.5px; font-weight: 600; }
   `;
 
   const ui = {
@@ -227,6 +280,27 @@
     options: null
   };
 
+  // Width of FACEIT's right-hand icon rail (logged-in users), so the launcher doesn't cover it.
+  function railWidth() {
+    const y = innerHeight / 2;
+    for (const el of document.elementsFromPoint(innerWidth - 4, y)) {
+      if (el === ui.host || el === document.documentElement || el === document.body) continue;
+      for (let node = el; node && node !== document.body; node = node.parentElement) {
+        const rect = node.getBoundingClientRect();
+        if (rect.right >= innerWidth - 2 && rect.width >= 32 && rect.width <= 120 && rect.height >= innerHeight * 0.5) {
+          return Math.round(rect.width);
+        }
+      }
+    }
+    return 0;
+  }
+
+  function placeAside() {
+    if (!ui.host) return;
+    const rail = `${railWidth()}px`;
+    if (ui.host.style.getPropertyValue("--rail") !== rail) ui.host.style.setProperty("--rail", rail);
+  }
+
   function mount() {
     if (ui.host?.isConnected || !document.body) return;
     ui.host = document.createElement("div");
@@ -235,6 +309,7 @@
     ui.root.innerHTML = `<style>${CSS}</style><div class="root"></div>`;
     ui.root.addEventListener("click", onClick);
     document.body.appendChild(ui.host);
+    placeAside();
   }
 
   function unmount() {
@@ -289,27 +364,43 @@
       return;
     }
 
-    container.innerHTML = `
-      <div class="panel">
-        <header>
-          <div>
-            <h2>Match <span>Intel</span></h2>
-            <p>Based on each player's last ${matches(ui.options.range)}</p>
-          </div>
-          <button class="close" data-action="close" title="Close">✕</button>
-        </header>
-        <div class="body"><div class="loading"><div class="spinner"></div>Loading stats…</div></div>
-      </div>`;
+    // Keep the open panel and its scroll position; only the body content is swapped.
+    const shell = container.querySelector(".panel .body");
+    if (shell) {
+      shell.classList.add("busy");
+    } else {
+      container.innerHTML = `
+        <div class="panel">
+          <header>
+            <div>
+              <h2>Match <span>Intel</span></h2>
+              <p></p>
+            </div>
+            <button class="close" data-action="close" title="Close">✕</button>
+          </header>
+          <div class="body"><div class="loading"><div class="spinner"></div>Loading stats…</div></div>
+        </div>`;
+    }
+    container.querySelector("header p").textContent = `Based on each player's last ${matches(ui.options.range)}`;
 
     const team = room.state.teams.find(t => t.key === ui.teamKey);
     if (!team) return;
 
     const renderId = ++ui.renderId;
+    const current = () => renderId === ui.renderId && ui.open && ui.root;
     Promise.all(team.roster.map(p => analysis.loadProfile(p, ui.options.range).catch(() => null))).then(profiles => {
-      if (renderId !== ui.renderId || !ui.open || !ui.root) return;
-      const result = analysis.analyzeTeam(team, profiles, room.state.match, selectedMap());
-      ui.root.querySelector(".body").innerHTML = body(result);
+      if (!current()) return;
+      paint(team, profiles);
     });
+  }
+
+  function paint(team, profiles) {
+    const el = ui.root.querySelector(".body");
+    const scroll = el.scrollTop;
+    const result = analysis.analyzeTeam(team, profiles, room.state.match, selectedMap());
+    el.innerHTML = body(result);
+    el.scrollTop = scroll;
+    el.classList.remove("busy");
   }
 
   function teamOptions() {
@@ -430,6 +521,61 @@
       </table>`;
   }
 
+  const pct = value => `${Math.round(value * 100)}%`;
+
+  function lineup(r) {
+    const by = id => r.roles.filter(e => e.effective.id === id).map(e => escape(e.profile.nickname));
+    const slots = [["awp", "AWP"], ["entry", "Entry"], ["lurker", "Lurk"], ["support", "Support"]]
+      .map(([id, label]) => [label, by(id)])
+      .map(([label, names]) => `<span>${label}: <b>${names.length ? names.join(", ") : "–"}</b></span>`);
+    return `<div class="lineup">${slots.join("")}</div>`;
+  }
+
+  function styleCard({ profile: p, role, onMap }, map) {
+    const m = role.metrics;
+    const source = `career · ${matches(m.matches.toLocaleString("en-US"))}`;
+    const second = role.secondary ? `<span class="role-tag second">${role.secondary.short}</span>` : "";
+    const mapNote = onMap && onMap.id !== role.id
+      ? `<p class="map-note">On ${escape(mapName(map))}: ${onMap.label} — ${escape(onMap.read)}</p>`
+      : "";
+    const tags = role.traits.length
+      ? `<div class="tags">${role.traits.slice(0, 4).map(t => `<span class="${t.tone}">${escape(t.text)}</span>`).join("")}</div>`
+      : "";
+    return `
+      <div class="style ${role.id}">
+        <div class="style-head">
+          <span class="nick">${escape(p.nickname)}</span>
+          <span class="role-tag">${role.label}</span>${second}
+          <span class="src" title="${m.rounds.toLocaleString("en-US")} rounds">${source}</span>
+        </div>
+        <p>${escape(role.read)}</p>
+        ${role.tip ? `<p class="tip">${escape(role.tip)}</p>` : ""}
+        ${mapNote}
+        <div class="metrics">
+          <span>Opening<b>${pct(m.entryRate)}${m.entrySuccess !== null ? ` · ${pct(m.entrySuccess)}` : ""}</b></span>
+          <span>1vX<b>${pct(m.clutchRate)}</b></span>
+          <span>Flashes<b>${m.flashRate.toFixed(2)}</b></span>
+          <span>AWP<b>${pct(m.sniperShare)}</b></span>
+        </div>
+        ${tags}
+      </div>`;
+  }
+
+  function playstyles(r, map) {
+    const status = map ? `<small>career + ${escape(mapName(map))}</small>` : `<small>career stats</small>`;
+    if (!r.roles.length) {
+      return `<h3>Playstyle ${status}</h3><div class="empty">No extended stats for these players</div>`;
+    }
+    const order = { awp: 0, entry: 1, lurker: 2, support: 3, rifler: 4 };
+    const sorted = [...r.roles].sort((a, b) => order[a.effective.id] - order[b.effective.id]);
+    return `
+      <h3>Playstyle ${status}</h3>
+      ${lineup(r)}
+      <div class="styles">${sorted.map(entry => styleCard(entry, map)).join("")}</div>
+      <div class="hint">Opening = share of rounds they take the first duel · won. 1vX = rounds they end up alone.
+        FACEIT doesn't record positions, so roles are read from opening duels, clutches, utility and AWP kills.</div>`;
+  }
+
   function body(r) {
     const map = selectedMap();
     return `
@@ -442,6 +588,8 @@
 
       <h3>Overview</h3>
       ${summary(r, map)}
+
+      ${playstyles(r, map)}
 
       <h3>How to win</h3>
       ${list(r.tips, "tips", "Not enough data for recommendations")}
@@ -469,4 +617,8 @@
     ui.options = settings.room;
     update();
   });
+
+  // The rail appears after login and on some pages only.
+  dom.onMutation(placeAside);
+  addEventListener("resize", placeAside);
 })();

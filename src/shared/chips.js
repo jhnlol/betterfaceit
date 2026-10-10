@@ -80,6 +80,21 @@
       letter-spacing: .5px;
     }
     .fb-chip.fb-muted { opacity: .6; }
+    .fb-chip.fb-role {
+      border-color: color-mix(in srgb, var(--fb-accent) 40%, var(--fb-line));
+      background: color-mix(in srgb, var(--fb-accent) 14%, var(--fb-surface));
+      color: var(--fb-accent);
+    }
+    .fb-chip.fb-role b { color: var(--fb-text); font-size: 10px; letter-spacing: .4px; text-transform: uppercase; }
+    .fb-chip.fb-role small { font-size: 9px; font-weight: 700; color: var(--fb-muted); text-transform: uppercase; }
+    .fb-chip.fb-form { gap: 3px; }
+    .fb-chip.fb-form i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--fb-bad);
+    }
+    .fb-chip.fb-form i.W { background: var(--fb-good); }
     .fb-chip .fb-flag {
       width: 16px;
       height: 11px;
@@ -93,6 +108,19 @@
       cursor: pointer;
       transition: color .15s, border-color .15s;
     }
+    .fb-chips[data-style="minimal"] .fb-chip {
+      padding: 0 3px;
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+    }
+    .fb-chips[data-style="minimal"] .fb-chip + .fb-chip { margin-left: 2px; }
+    .fb-chips[data-style="filled"] .fb-chip:is(.good, .mid, .bad) {
+      background: color-mix(in srgb, var(--c) 22%, var(--fb-surface));
+      border-color: color-mix(in srgb, var(--c) 45%, transparent);
+      box-shadow: none;
+    }
+    .fb-chips[data-style="filled"] .fb-chip:is(.good, .mid, .bad) .fb-label { color: var(--c); }
     a.fb-chip:hover {
       color: var(--fb-accent);
       border-color: color-mix(in srgb, var(--fb-accent) 50%, transparent);
@@ -100,6 +128,8 @@
   `;
 
   const level = (value, good, bad) => (value >= good ? "good" : value < bad ? "bad" : "");
+
+  const attr = text => FB.format.escape(text).replace(/\n/g, "&#10;");
 
   function stat(label, value, tone = "", title = "") {
     return {
@@ -126,14 +156,31 @@
     if (!stats.n) return [note("No matches")];
 
     const chips = [];
-    if (room.kd) chips.push(stat("K/D", stats.kd.toFixed(2), stats.kd >= 1 ? "good" : "bad"));
-    if (room.winrate) chips.push(stat("WR", `${Math.round(stats.winrate)}%`, stats.winrate >= 50 ? "good" : "bad"));
+    if (room.kd) chips.push(stat("K/D", stats.kd.toFixed(2), level(stats.kd, 1.1, 0.9)));
+    if (room.winrate) chips.push(stat("WR", `${Math.round(stats.winrate)}%`, level(stats.winrate, 55, 45)));
     if (room.adr && stats.adr !== null) chips.push(stat("ADR", Math.round(stats.adr), level(stats.adr, 80, 65)));
     if (room.avgKills) chips.push(stat("K", stats.avgK.toFixed(1), "", "Average kills per match"));
     if (room.avgDeaths) chips.push(stat("D", stats.avgD.toFixed(1), "", "Average deaths per match"));
     if (room.avgAssists) chips.push(stat("A", stats.avgA.toFixed(1), "", "Average assists per match"));
     if (room.hs && stats.hs !== null) chips.push(stat("HS", `${Math.round(stats.hs)}%`));
     return chips;
+  }
+
+  function role(info) {
+    const second = info.secondary ? ` <small>/ ${info.secondary.short}</small>` : "";
+    return {
+      text: info.label,
+      html: `<span class="fb-chip fb-role" title="${attr(info.summary)}">${FB.icons.crosshair}<b>${info.short}</b>${second}</span>`
+    };
+  }
+
+  function form(results) {
+    const wins = results.filter(r => r === "W").length;
+    return {
+      text: `Form ${results.join("")}`,
+      html: `<span class="fb-chip fb-form" title="Last ${results.length}: ${wins} won, ${results.length - wins} lost (newest first)">` +
+            `${results.map(r => `<i class="${r}"></i>`).join("")}</span>`
+    };
   }
 
   function country(code) {
@@ -167,6 +214,8 @@
         chips.push(note("SMURF?", "fb-smurf", `Possible smurf: ${profile.smurf.reasons.join(", ")}`, FB.icons.warning));
       }
       if (room.trust) chips.push(trust(profile.trust));
+      if (room.role && profile.role) chips.push(role(profile.role));
+      if (room.form && profile.form?.length) chips.push(form(profile.form));
       chips.push(...statChips(profile, room));
       if (room.matches && profile.matchesTotal !== null) {
         chips.push(stat("Matches", profile.matchesTotal.toLocaleString("en-US")));

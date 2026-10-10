@@ -1,5 +1,5 @@
 (() => {
-  const { api, format } = globalThis.FB;
+  const { api, format, playstyle } = globalThis.FB;
 
   const num = value => {
     const n = parseFloat(value);
@@ -23,6 +23,8 @@
       kills: num(raw.i6) ?? 0,
       assists: num(raw.i7) ?? 0,
       deaths: num(raw.i8) ?? 0,
+      // Triple kills and better.
+      multi: (num(raw.i14) ?? 0) + (num(raw.i15) ?? 0) + (num(raw.i16) ?? 0),
       kpr: num(raw.c3),
       hs: num(raw.c4),
       adr: num(raw.c10),
@@ -56,7 +58,8 @@
       winrate: (wins / n) * 100,
       avgK: kills / n,
       avgD: deaths / n,
-      avgA: assists / n
+      avgA: assists / n,
+      multi: sum(games, "multi") / n
     };
     stats.rating = rating(stats);
     return stats;
@@ -156,6 +159,8 @@
     const byMap = Map.groupBy(games, g => g.map);
     const elos = games.map(g => g.elo).filter(e => e !== null);
     const created = Date.parse(user?.activated_at ?? user?.created_at);
+    const mapSegments = (lifetime?.segments ?? [])
+      .find(s => s._id?.segmentId === "csgo_map" && (s._id.gameMode ?? "5v5") === "5v5")?.segments ?? {};
 
     const profile = {
       ...player,
@@ -170,8 +175,13 @@
       accountAgeDays: Number.isNaN(created) ? null : Math.floor((Date.now() - created) / 864e5),
       verified: Boolean(user?.verified),
       country: /^[a-z]{2}$/i.test(user?.country ?? "") ? user.country.toLowerCase() : null,
-      memberships: user?.memberships ?? []
+      memberships: user?.memberships ?? [],
+      careerStyle: playstyle.rates(playstyle.fromLifetime(lifetime?.lifetime), "career"),
+      mapStyles: Object.fromEntries(Object.entries(mapSegments)
+        .map(([map, raw]) => [map, playstyle.rates(playstyle.fromLifetime(raw), "map")])
+        .filter(([, rates]) => rates))
     };
+    profile.role = playstyle.classify(profile.careerStyle, profile.stats);
 
     profile.trust = trustFactor(profile);
     profile.smurf = smurfCheck(profile);
@@ -192,6 +202,16 @@
       cache.set(key, request);
     }
     return cache.get(key);
+  }
+
+  // Career role plus the one on the given map. Per-match extended stats would be fresher, but that
+  // endpoint is rate-limited to roughly 15 requests a minute, far too few for 10 players.
+  function styleOf(profile, map) {
+    const role = profile.role;
+    const mapRates = map ? profile.mapStyles?.[map] : null;
+    const onMap = mapRates ? playstyle.classify(mapRates, null) : null;
+    // What to expect in this match: the map role when there is enough data on that map.
+    return { role, onMap, effective: onMap ?? role };
   }
 
   function teamMaps(profiles) {
@@ -239,6 +259,7 @@
       maps,
       mapInfo: map ? maps.find(m => m.map === map) ?? { map, name: format.mapName(map), n: 0, w: 0, winrate: 0 } : null,
       form: formResults.length ? (formResults.filter(r => r === "W").length / formResults.length) * 100 : null,
+      roles: players.map(p => ({ profile: p, ...styleOf(p, map) })).filter(entry => entry.role),
       danger: ranked[0] ?? null,
       weakest: ranked.length > 1 ? ranked.at(-1) : null,
       party: largestParty(team, match),
@@ -310,6 +331,8 @@
       tips.push("They play aggressively (many kills and deaths) — hold your angles and let them come to you.");
     }
 
+    adviseRoles(a, { strengths, weaknesses, tips });
+
     if (a.party >= 3) {
       strengths.push(`${a.party}-stack premade — better communication`);
       tips.push("The premade is coordinated — expect stacks and retakes, vary your pace and sites.");
@@ -334,8 +357,48 @@
       tips.push(`${p.nickname} may be a smurf — treat them as the biggest threat.`);
     }
 
-    return { strengths, weaknesses, tips: tips.slice(0, 6) };
+    return { strengths, weaknesses, tips: tips.slice(0, 8) };
   }
 
-  globalThis.FB.analysis = { loadProfile, analyzeTeam };
+  function adviseRoles(a, { strengths, weaknesses, tips }) {
+    if (!a.roles.length) return;
+    const withRole = id => a.roles.filter(entry => entry.effective.id === id);
+    const names = list => list.map(entry => entry.profile.nickname).join(" and ");
+    const verb = (list, one, many) => (list.length > 1 ? many : one);
+    const pctOf = value => `${Math.round(value * 100)}%`;
+
+    const awpers = withRole("awp");
+    if (awpers.length) {
+      strengths.push(`AWP: ${names(awpers)} (${pctOf(awpers[0].effective.metrics.sniperShare)} of kills with a sniper)`);
+      tips.push(`${names(awpers)} ${verb(awpers, "holds", "hold")} the AWP — don't peek long angles dry, smoke them off and take close fights.`);
+    } else if (a.roles.length >= 4) {
+      weaknesses.push("No dedicated AWPer");
+      tips.push("They have no real AWPer — long angles are yours, your AWP can take map control early.");
+    }
+
+    const entries = withRole("entry");
+    if (entries.length) {
+      tips.push(`${names(entries)} ${verb(entries, "opens", "open")} the rounds — crossfire the entrance and trade them instantly.`);
+    }
+
+    const lurkers = withRole("lurker");
+    if (lurkers.length) {
+      tips.push(`${names(lurkers)} ${verb(lurkers, "lurks", "lurk")} — expect flanks late in the round and don't over-rotate on the first call.`);
+    }
+
+    const flashes = average(a.roles.map(entry => entry.effective.metrics.flashRate));
+    if (flashes !== null && flashes <= 0.3) {
+      weaknesses.push(`Little utility (${flashes.toFixed(2)} flashes per round per player)`);
+      tips.push("They barely use flashes — hold tight off-angles, they will dry-peek into you.");
+    } else if (flashes !== null && flashes >= 0.55) {
+      strengths.push(`Heavy utility (${flashes.toFixed(2)} flashes per round per player)`);
+    }
+
+    const openers = a.roles.filter(entry => entry.effective.metrics.entrySuccess !== null);
+    const opening = average(openers.map(entry => entry.effective.metrics.entrySuccess));
+    if (opening !== null && opening >= 0.57) strengths.push(`Win most opening duels (${pctOf(opening)})`);
+    else if (opening !== null && opening <= 0.47) weaknesses.push(`Lose most opening duels (${pctOf(opening)} won)`);
+  }
+
+  globalThis.FB.analysis = { loadProfile, styleOf, analyzeTeam };
 })();

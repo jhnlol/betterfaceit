@@ -12,7 +12,11 @@
     { id: "gold",      name: "Royal Gold",  bg: "#0d0b06", surface: "#1a170e", accent: "#ffc700", text: "#f6f1e1", border: "#3a3216" },
     { id: "amoled",    name: "AMOLED",      bg: "#000000", surface: "#0c0c0c", accent: "#ff5500", text: "#ffffff" },
     { id: "nord",      name: "Nord",        bg: "#2e3440", surface: "#3b4252", accent: "#88c0d0", text: "#eceff4", win: "#a3be8c", loss: "#bf616a" },
-    { id: "dracula",   name: "Dracula",     bg: "#1e1f29", surface: "#282a36", accent: "#ff79c6", text: "#f8f8f2", win: "#50fa7b", loss: "#ff5555" }
+    { id: "dracula",   name: "Dracula",     bg: "#1e1f29", surface: "#282a36", accent: "#ff79c6", text: "#f8f8f2", win: "#50fa7b", loss: "#ff5555" },
+    { id: "tokyo",     name: "Tokyo Night", bg: "#1a1b26", surface: "#24283b", accent: "#7aa2f7", text: "#c0caf5", win: "#9ece6a", loss: "#f7768e" },
+    { id: "catppuccin", name: "Catppuccin", bg: "#1e1e2e", surface: "#313244", accent: "#cba6f7", text: "#cdd6f4", win: "#a6e3a1", loss: "#f38ba8" },
+    { id: "gruvbox",   name: "Gruvbox",     bg: "#1d2021", surface: "#282828", accent: "#fe8019", text: "#ebdbb2", win: "#b8bb26", loss: "#fb4934" },
+    { id: "rosepine",  name: "Rosé Pine",   bg: "#191724", surface: "#1f1d2e", accent: "#ebbcba", text: "#e0def4", win: "#9ccfd8", loss: "#eb6f92" }
   ]);
 
   const COLOR_KEYS = Object.freeze(["bg", "surface", "border", "accent", "text", "muted", "win", "loss"]);
@@ -32,6 +36,10 @@
     { id: "Verdana",        name: "Verdana (system)" }
   ]);
 
+  const BG_EFFECTS = Object.freeze(["none", "glow", "aurora", "grid", "dots", "vignette"]);
+
+  const MAX_CSS = 5000;
+
   const AD_SELECTORS = '[class*="AdPlacement"], [id^="div-gpt-ad"], iframe[id^="google_ads_iframe"]';
 
   function withDerivedColors(theme) {
@@ -42,6 +50,17 @@
       muted: theme.muted || mix(theme.text, theme.bg, 0.38),
       win: theme.win || "#05ff00",
       loss: theme.loss || "#ef0000"
+    };
+  }
+
+  // Dark palette tinted with one hue — used by "Randomize" in the custom theme editor.
+  function generate(hue = Math.floor(Math.random() * 360)) {
+    const { hsl } = FB.colors;
+    return {
+      bg: hsl(hue, 28, 6),
+      surface: hsl(hue, 22, 11),
+      accent: hsl(hue, 90, 58),
+      text: hsl(hue, 25, 93)
     };
   }
 
@@ -140,12 +159,98 @@
     }
   }
 
+  // Each layer: [image, size]. Effects sit on top of the (dimmed) background image.
+  function backgroundLayers(theme, style) {
+    const { alpha, mix } = FB.colors;
+    const { accent, text } = theme;
+    const layers = {
+      glow: [
+        [`radial-gradient(1200px 650px at 10% -10%, ${alpha(accent, 20)}, transparent 65%)`, "auto"],
+        [`radial-gradient(900px 500px at 110% 0%, ${alpha(accent, 10)}, transparent 60%)`, "auto"]
+      ],
+      aurora: [
+        [`radial-gradient(1100px 600px at 15% 0%, ${alpha(accent, 22)}, transparent 60%)`, "auto"],
+        [`radial-gradient(1000px 650px at 85% 10%, ${alpha(mix(accent, "#7c3aed", 0.55), 20)}, transparent 60%)`, "auto"],
+        [`radial-gradient(1200px 500px at 50% 110%, ${alpha(mix(accent, "#06b6d4", 0.5), 12)}, transparent 60%)`, "auto"]
+      ],
+      grid: [
+        [`linear-gradient(${alpha(text, 4)} 1px, transparent 1px)`, "36px 36px"],
+        [`linear-gradient(90deg, ${alpha(text, 4)} 1px, transparent 1px)`, "36px 36px"]
+      ],
+      dots: [[`radial-gradient(${alpha(text, 8)} 1px, transparent 1.5px)`, "20px 20px"]],
+      vignette: [["radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, .55))", "auto"]]
+    }[style.bgEffect] ?? [];
+
+    if (style.bgImage) {
+      const url = style.bgImage.replace(/["\\\n]/g, "");
+      const dim = alpha(theme.bg, style.bgDim);
+      layers.push([`linear-gradient(${dim}, ${dim})`, "auto"], [`url("${url}")`, "cover"]);
+    }
+    return layers;
+  }
+
+  // FACEIT's own surface colors, level 0 (darkest) to 4.
+  const NATIVE_SURFACES = Object.freeze(["#060606", "#121212", "#1d1d1d", "#242424", "#2e2e2e"]);
+
+  function surfaces(theme) {
+    if (theme.native) return NATIVE_SURFACES;
+    const vars = buildVars(theme);
+    return [0, 1, 2, 3, 4].map(level => vars[`--f-surface-level-${level}`]);
+  }
+
+  // --fb-glass-N: surface backgrounds with panel opacity applied. theme.js points FACEIT's
+  // hard-coded background colors at these, so opacity reaches panels that don't use CSS variables.
+  function panelVars(theme, style) {
+    const { alpha } = FB.colors;
+    const opaque = style.panelOpacity >= 100;
+    const levels = surfaces(theme).map(color => (opaque ? color : alpha(color, style.panelOpacity)));
+    const vars = Object.fromEntries(levels.map((color, level) => [`--fb-glass-${level}`, color]));
+    if (opaque) return vars;
+
+    levels.forEach((color, level) => { vars[`--f-surface-level-${level}`] = color; });
+    Object.assign(vars, {
+      "--f-palette-gray-100": levels[0],
+      "--f-palette-gray-90": levels[1],
+      "--f-palette-gray-80": levels[2],
+      "--f-palette-gray-60": levels[4]
+    });
+    return vars;
+  }
+
+  // Accent line and hover highlight on detected panels. Both are box-shadows, so they're combined
+  // into one value per state. No transforms: they would re-anchor fixed popups inside the panel.
+  function panelEffects(theme, style) {
+    const { alpha } = FB.colors;
+    const line = {
+      top: `inset 0 2px 0 ${theme.accent}`,
+      left: `inset 3px 0 0 ${theme.accent}`
+    }[style.panelAccent];
+    const hover = {
+      glow: `0 0 0 1px ${alpha(theme.accent, 65)}, 0 0 26px ${alpha(theme.accent, 32)}`,
+      outline: `inset 0 0 0 1px ${theme.accent}`
+    }[style.hover];
+    if (!line && !hover) return [];
+
+    // Only the innermost hovered panel lights up, not every panel around it.
+    const outer = "[data-fb-panel]:not([data-fb-panel] [data-fb-panel])";
+    const hovered = ":hover:not(:has([data-fb-panel]:hover))";
+    const rules = [];
+    if (line) rules.push(`${outer} { box-shadow: ${line} !important; }`);
+    if (hover) {
+      rules.push("[data-fb-panel] { transition: box-shadow .15s ease; }");
+      rules.push(`[data-fb-panel]${hovered} { box-shadow: ${hover} !important; }`);
+      if (line) rules.push(`${outer}${hovered} { box-shadow: ${line}, ${hover} !important; }`);
+    }
+    return rules;
+  }
+
   function buildCss(theme, style) {
     const { alpha } = FB.colors;
     const font = fontFamily(style);
     const vars = {
       ...(theme.native ? {} : buildVars(theme)),
       ...shadowVars(theme, style.shadows),
+      ...panelVars(theme, style),
       "--fb-radius-scale": String(style.roundness / 100),
       ...(font ? { "--f-font-family": font, "--font-geist": font } : {})
     };
@@ -160,14 +265,30 @@
     }
     if (font) rules.push(`body, body :not(code, pre, kbd, samp) { font-family: ${font} !important; }`);
     if (style.borderWidth > 0) {
-      rules.push(`[data-fb-panel] { outline: ${style.borderWidth}px solid ${theme.border} !important; outline-offset: -${style.borderWidth}px; }`);
+      const color = style.borderColor === "accent" ? alpha(theme.accent, 55) : theme.border;
+      rules.push(`[data-fb-panel] { outline: ${style.borderWidth}px solid ${color} !important; outline-offset: -${style.borderWidth}px; }`);
     }
-    if (style.scale !== 100) rules.push(`html { zoom: ${style.scale / 100}; }`);
+    rules.push(...panelEffects(theme, style));
+    if (style.blur > 0) {
+      // Outermost panels only: nested blurs cost a lot and look the same.
+      rules.push(`[data-fb-panel]:not([data-fb-panel] [data-fb-panel]) { backdrop-filter: blur(${style.blur}px) saturate(1.2); }`);
+    }
     if (style.scrollbar) rules.push(`* { scrollbar-color: ${alpha(theme.accent, 70)} transparent; }`);
-    if (style.bgImage) {
-      const url = style.bgImage.replace(/["\\\n]/g, "");
-      const dim = alpha(theme.bg, style.bgDim);
-      rules.push(`body { background: linear-gradient(${dim}, ${dim}), url("${url}") center / cover fixed no-repeat !important; }`);
+    if (style.thinScrollbar) rules.push("* { scrollbar-width: thin; }");
+
+    const layers = backgroundLayers(theme, style);
+    if (layers.length) {
+      const list = pick => layers.map(pick).join(", ");
+      rules.push(`html {
+  background-color: ${theme.bg} !important;
+  background-image: ${list(([image]) => image)} !important;
+  background-size: ${list(([, size]) => size)} !important;
+  background-repeat: ${list(([, size]) => (size.includes("px") ? "repeat" : "no-repeat"))} !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+}`);
+      // Page-sized wrappers would otherwise paint over the background.
+      rules.push("body, [data-fb-backdrop] { background-color: transparent !important; background-image: none !important; }");
     }
     if (style.hideAds) rules.push(`${AD_SELECTORS} { display: none !important; }`);
     if (!style.animations) {
@@ -179,7 +300,14 @@
 
   const SHARE_PREFIX = "FB1.";
   const SHADOWS = ["default", "none", "strong", "glow"];
-  const RANGES = { roundness: [0, 200], borderWidth: [0, 3], scale: [80, 120], bgDim: [0, 95] };
+  const ENUMS = {
+    shadows: SHADOWS,
+    bgEffect: BG_EFFECTS,
+    borderColor: ["theme", "accent"],
+    hover: ["none", "glow", "outline"],
+    panelAccent: ["none", "top", "left"]
+  };
+  const RANGES = { roundness: [0, 200], borderWidth: [0, 3], scale: [80, 120], bgDim: [0, 95], panelOpacity: [40, 100], blur: [0, 20] };
 
   function toBase64Url(text) {
     const bytes = new TextEncoder().encode(text);
@@ -194,6 +322,7 @@
   function exportCode(settings) {
     const payload = { theme: settings.theme, style: settings.style };
     if (settings.theme === "custom") payload.colors = pickColors(resolve(settings));
+    if (settings.customCss) payload.css = settings.customCss;
     return SHARE_PREFIX + toBase64Url(JSON.stringify(payload));
   }
 
@@ -210,7 +339,9 @@
       }
     }
     if (style.font && !FONTS.some(f => f.id === style.font)) delete style.font;
-    if (style.shadows && !SHADOWS.includes(style.shadows)) delete style.shadows;
+    for (const [key, allowed] of Object.entries(ENUMS)) {
+      if (style[key] !== undefined && !allowed.includes(style[key])) delete style[key];
+    }
     if (style.bgImage && !/^https?:\/\/\S+$/i.test(style.bgImage)) delete style.bgImage;
     return { ...defaults, ...style };
   }
@@ -228,15 +359,16 @@
     if (!payload || typeof payload !== "object") return null;
 
     const style = sanitizeStyle(payload.style, defaultStyle);
+    const extra = typeof payload.css === "string" ? { customCss: payload.css.slice(0, MAX_CSS) } : {};
     if (payload.theme === "custom") {
       const colors = Object.fromEntries(
         COLOR_KEYS.filter(key => FB.colors.isHex(payload.colors?.[key])).map(key => [key, payload.colors[key].toLowerCase()])
       );
-      return { theme: "custom", customTheme: colors, style };
+      return { theme: "custom", customTheme: colors, style, ...extra };
     }
     if (!PRESETS.some(t => t.id === payload.theme)) return null;
-    return { theme: payload.theme, style };
+    return { theme: payload.theme, style, ...extra };
   }
 
-  FB.themes = { PRESETS, COLOR_KEYS, CUSTOM_BASE, FONTS, resolve, withDerivedColors, pickColors, buildVars, buildCss, fontUrl, exportCode, importCode };
+  FB.themes = { NATIVE_SURFACES, PRESETS, COLOR_KEYS, CUSTOM_BASE, FONTS, BG_EFFECTS, MAX_CSS, generate, resolve, withDerivedColors, pickColors, buildVars, buildCss, fontUrl, exportCode, importCode };
 })();

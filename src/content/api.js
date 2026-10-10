@@ -15,11 +15,27 @@
     }
   }
 
-  async function request(url, retries = 1) {
+  // FACEIT rate-limits the stats service (429 + Retry-After, up to a minute). Pause the whole queue
+  // instead of failing, otherwise every player card after the limit would show "No stats".
+  const MAX_RETRY_AFTER = 65000;
+  let pausedUntil = 0;
+
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function retryDelay(response) {
+    const seconds = parseFloat(response.headers.get("retry-after"));
+    return Number.isFinite(seconds) ? Math.min(seconds * 1000, MAX_RETRY_AFTER) : RETRY_DELAY;
+  }
+
+  async function request(url, retries = 2) {
+    const wait = pausedUntil - Date.now();
+    if (wait > 0) await sleep(wait);
     const response = await fetch(url, { credentials: "include" });
     if (response.ok) return response.json();
     if (retries > 0 && RETRYABLE.has(response.status)) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      const delay = retryDelay(response);
+      if (response.status === 429) pausedUntil = Math.max(pausedUntil, Date.now() + delay);
+      await sleep(delay);
       return request(url, retries - 1);
     }
     throw new HttpError(response.status, url);

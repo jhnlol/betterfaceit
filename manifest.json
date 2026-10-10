@@ -11,6 +11,9 @@
         "128": "icons/icon128.png"
     },
     "permissions": ["storage"],
+    "background": {
+        "service_worker": "src/background.js"
+    },
     "action": {
         "default_icon": {
             "16": "icons/icon16.png",
@@ -38,11 +41,13 @@
                 "src/shared/icons.js",
                 "src/shared/chips.js",
                 "src/content/api.js",
+                "src/content/playstyle.js",
                 "src/content/analysis.js",
                 "src/content/room.js",
                 "src/content/panels.js",
                 "src/content/badges.js",
                 "src/content/teams.js",
+                "src/content/hovercard.js",
                 "src/content/intel.js"
             ],
             "run_at": "document_idle"
